@@ -14,7 +14,7 @@ from tensorflow.keras.layers import LSTM, GRU, Input, Dense, Dropout, Attention,
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 
 # Reading Dataset
-df = pd.read_csv('D:/Permanent Project/Data/gold.csv')
+df = pd.read_csv('D:/Permanent Project/gold.csv')
 df['Date'] = pd.to_datetime(df['Date'])
 df.sort_values(by = 'Date', ascending = True, inplace = True)
 df.reset_index(drop = True, inplace = True)
@@ -22,13 +22,6 @@ df['Price'] = df['Price'].replace({',': ''}, regex = True).astype(float)
 
 # Streamlit title
 st.title('Gold Price Prediction Based On Historical Data')
-
-# Sidebar for model selection
-# model_option = st.sidebar.selectbox(
-#     'Choose a model to predict gold prices',
-#     ['LSTM+Attention', 'GRU', 'Both LSTM+Attention and GRU']
-# )
-
 st.write("In this project, we implement two models: Long-Short Term Memory with Attention Mechanism and Gated Reccurent Unit.")
 st.write("\nHere's the data from 2001 to now (January 12th, 2025).")
 
@@ -92,7 +85,7 @@ scaler = MinMaxScaler()
 scaler.fit(df.Price.values.reshape(-1,1))
 
 # Define Window Sizes
-window_size_lstm = 3
+window_size_lstm = 5
 window_size_gru = 3
 
 # Prepare data for LSTM+Attention
