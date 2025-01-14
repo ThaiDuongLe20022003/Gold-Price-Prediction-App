@@ -85,7 +85,7 @@ scaler = MinMaxScaler()
 scaler.fit(df.Price.values.reshape(-1,1))
 
 # Define Window Sizes
-window_size_lstm = 5
+window_size_lstm = 3
 window_size_gru = 3
 
 # Prepare data for LSTM+Attention
