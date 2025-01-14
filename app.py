@@ -14,7 +14,7 @@ from tensorflow.keras.layers import LSTM, GRU, Input, Dense, Dropout, Attention,
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 
 # Reading Dataset
-df = pd.read_csv('D:/Permanent Project/gold.csv')
+df = pd.read_csv('gold.csv')
 df['Date'] = pd.to_datetime(df['Date'])
 df.sort_values(by = 'Date', ascending = True, inplace = True)
 df.reset_index(drop = True, inplace = True)
