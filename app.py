@@ -23,16 +23,16 @@ df['Price'] = df['Price'].replace({',': ''}, regex = True).astype(float)
 # Streamlit title
 st.title('Gold Price Prediction Based On Historical Data')
 st.write("In this project, we implement two models: Long-Short Term Memory with Attention Mechanism and Gated Reccurent Unit.")
-st.write("\nHere's the data from 2001 to now (January 12th, 2025).")
+st.write("\nHere's the data from 1975 to now.")
 
-# Visualizing Gold Price in 21st Century
-plt.figure(figsize = (15, 6), dpi = 150)
+# Visualizing Gold Price in History
+plt.figure(figsize = (25, 8), dpi = 150)
 plt.rcParams['axes.facecolor'] = 'lightgray'
 plt.rc('axes', edgecolor = 'white')
 
 plt.plot(df.Date, df.Price, color = 'blue', lw = 2)
 
-plt.title('Gold Price in 21st Century', fontsize = 15)
+plt.title('Gold Price in History', fontsize = 15)
 plt.xlabel('Year', fontsize = 12)
 plt.ylabel('Price', fontsize = 12)
 
@@ -50,15 +50,25 @@ model_option = st.sidebar.selectbox(
     ['LSTM+Attention', 'GRU', 'Two Models']
 )
 
-# Filter data for the years between 2020 and 2025
-test_data = df[df['Date'].dt.year.between(2020, 2025)]
-test_size = test_data.shape[0]
-train_data = df.Price[:- test_size]
+# Input from user
+input_year = st.number_input(
+    "Enter the starting year for prediction (minimum: 2015):", 
+    min_value = 2015, 
+    max_value = 2024, 
+    value = 2020
+)
 
-st.write("\nWe cannot train on future data in time series data, so we consider the data from 2020 (the first year of COVID-19 pandemic) to now for testing and everything else for training.")
+# Filter data for the years between user input and 2025
+test_data = df[df['Date'].dt.year.between(input_year, 2025)]
+test_size = test_data.shape[0]
+train_data = df.Price[:-test_size]
+
+st.write(
+    f"\nWe cannot train on future data in time series data, so we consider the data from {input_year} to now for testing and everything else for training."
+)
 
 # Gold Price Training and Test Sets Plot
-plt.figure(figsize = (15, 6), dpi = 150)
+plt.figure(figsize = (25, 8), dpi = 150)
 plt.rcParams['axes.facecolor'] = 'lightgray'
 plt.rc('axes',edgecolor = 'white')
 
@@ -91,7 +101,7 @@ scaler = MinMaxScaler()
 scaler.fit(df.Price.values.reshape(-1,1))
 
 # Define Window Sizes
-window_size_lstm = 4
+window_size_lstm = 3
 window_size_gru = 3
 
 # Prepare data for LSTM+Attention
@@ -241,7 +251,7 @@ if model_option == 'LSTM+Attention':
     st.write(f"Training time: {end_time_lstm - start_time_lstm} seconds")
 
     # Visualizing Results
-    plt.figure(figsize = (15, 6), dpi = 150)
+    plt.figure(figsize = (25, 8), dpi = 150)
     plt.rcParams['axes.facecolor'] = 'lightgray'
     plt.rc('axes', edgecolor = 'white')
 
@@ -293,7 +303,7 @@ elif model_option == 'GRU':
     st.write(f"Training Time: {end_time_gru - start_time_gru} seconds")
 
     # Visualizing Results
-    plt.figure(figsize = (15, 6), dpi = 150)
+    plt.figure(figsize = (25, 8), dpi = 150)
     plt.rcParams['axes.facecolor'] = 'lightgray'
     plt.rc('axes', edgecolor = 'white')
 
@@ -354,7 +364,7 @@ else:
     st.write(f"Training Time: {end_time_gru - start_time_gru} seconds")
 
     # Visualizing Results
-    plt.figure(figsize = (15, 6), dpi = 150)
+    plt.figure(figsize = (25, 8), dpi = 150)
     plt.rcParams['axes.facecolor'] = 'lightgray'
     plt.rc('axes', edgecolor = 'white')
 
