@@ -13,6 +13,9 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import LSTM, GRU, Input, Dense, Dropout, Attention, Flatten
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 
+# Set Appearance as Wide mode
+st.set_page_config(layout = "wide")
+
 # Reading Dataset and Data Preprocessing
 df = pd.read_csv('gold.csv')
 df['Date'] = pd.to_datetime(df['Date'])
