@@ -312,7 +312,7 @@ elif model_option == 'GRU':
     # GRU Scatterplot
     plt.scatter(y_test_actual, gru_residuals, color='green', alpha = 0.6, edgecolor = 'k')
     plt.axhline(0, color = 'red', linestyle = '--', linewidth = 1)
-    plt.title("LSTM+Attention: Residuals vs True Values", fontsize = 16)
+    plt.title("GRU: Residuals vs True Values", fontsize = 16)
     plt.xlabel("True Values", fontsize = 14)
     plt.ylabel("Residuals", fontsize = 14)
     plt.grid(True, linestyle = '--', alpha = 0.6)
@@ -323,7 +323,7 @@ elif model_option == 'GRU':
     # Histogram of GRU
     plt.figure(figsize = (8, 5))
     sns.histplot(gru_residuals, kde = True, bins = 30)
-    plt.title("GRU: Residual Distribution")
+    plt.title("GRU: ResidualS Distribution")
     plt.xlabel("Residuals")
     plt.ylabel("Frequency")
     plt.tight_layout()
@@ -445,13 +445,13 @@ else:
 
     # Histogram of LSTM+Attention
     sns.histplot(lstm_residuals, kde = True, bins = 30, ax = axes[0])
-    axes[0].set_title("LSTM+Attention: Residual Distribution")
+    axes[0].set_title("LSTM+Attention: Residuals Distribution")
     axes[0].set_xlabel("Residuals")
     axes[0].set_ylabel("Frequency")
 
     # Histogram of GRU
     sns.histplot(gru_residuals, kde = True, bins = 30, ax = axes[1])
-    axes[1].set_title("GRU: Residual Distribution")
+    axes[1].set_title("GRU: Residuals Distribution")
     axes[1].set_xlabel("Residuals")
     axes[1].set_ylabel("Frequency")
 
