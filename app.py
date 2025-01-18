@@ -123,8 +123,15 @@ st.pyplot(plt)
 def build_lstm_attention_multivariate(window_size, num_features):
     input_layer = Input(shape = (window_size, num_features))
     lstm_out = LSTM(64, return_sequences = True)(input_layer)
-    attention = Attention()([lstm_out, lstm_out])
-    flatten = Flatten()(attention)
+    
+    # First Attention Layer
+    attention_1 = Attention()([lstm_out, lstm_out])
+    lstm_out_2 = LSTM(64, return_sequences = True)(attention_1)
+    
+    # Second Attention Layer
+    attention_2 = Attention()([lstm_out_2, lstm_out_2])
+    flatten = Flatten()(attention_2)
+    
     dense_1 = Dense(64, activation = 'relu')(flatten)
     dropout = Dropout(0.2)(dense_1)
     output_layer = Dense(1)(dropout)
@@ -137,6 +144,7 @@ def build_lstm_attention_multivariate(window_size, num_features):
 def build_gru_multivariate(window_size, num_features):
     input_layer = Input(shape = (window_size, num_features))
     gru_out = GRU(64, return_sequences = False)(input_layer)
+
     dense_1 = Dense(64, activation = 'relu')(gru_out)
     dropout = Dropout(0.2)(dense_1)
     output_layer = Dense(1)(dropout)
@@ -148,7 +156,7 @@ def build_gru_multivariate(window_size, num_features):
 
 # Callbacks
 early_stopping = EarlyStopping(monitor = 'val_loss', patience = 10, restore_best_weights = True, verbose = 1)
-reduce_lr = ReduceLROnPlateau(monitor = 'val_loss', factor = 0.5, patience = 5, min_lr = 1e-6, verbose = 1)
+reduce_lr = ReduceLROnPlateau(monitor = 'val_loss', factor = 0.5, patience = 5, min_lr = 1e-8, verbose = 1)
 
 # Metrics Calculating Definition
 def calculate_metrics(y_true, y_pred):
@@ -165,7 +173,7 @@ if model_option == 'LSTM+Attention':
         X_train, y_train,
         validation_split = 0.1,
         epochs = 200,
-        batch_size = 64,
+        batch_size = 128,
         callbacks = [early_stopping, reduce_lr],
         verbose = 1
     )
@@ -215,7 +223,7 @@ if model_option == 'LSTM+Attention':
     lstm_residuals = y_test_actual - lstm_pred_true
 
     # Scatterplot: Residuals vs True Values
-    plt.figure(figsize=(8, 5))
+    plt.figure(figsize = (8, 5))
 
     # LSTM+Attention Scatterplot
     plt.scatter(y_test_actual, lstm_residuals, color='blue', alpha = 0.6, edgecolor = 'k')
@@ -246,7 +254,7 @@ elif model_option == 'GRU':
         X_train, y_train,
         validation_split = 0.1,
         epochs = 200,
-        batch_size = 64,
+        batch_size = 128,
         callbacks = [early_stopping, reduce_lr],
         verbose = 1
     )
@@ -296,7 +304,7 @@ elif model_option == 'GRU':
     gru_residuals = y_test_actual - gru_pred_true
 
     # Scatterplot: Residuals vs True Values
-    plt.figure(figsize=(8, 5))
+    plt.figure(figsize = (8, 5))
 
     # GRU Scatterplot
     plt.scatter(y_test_actual, gru_residuals, color='green', alpha = 0.6, edgecolor = 'k')
@@ -327,7 +335,7 @@ else:
         X_train, y_train,
         validation_split = 0.1,
         epochs = 200,
-        batch_size = 64,
+        batch_size = 128,
         callbacks = [early_stopping, reduce_lr],
         verbose = 1
     )
@@ -340,7 +348,7 @@ else:
         X_train, y_train,
         validation_split = 0.1,
         epochs = 200,
-        batch_size = 64,
+        batch_size = 128,
         callbacks = [early_stopping, reduce_lr],
         verbose = 1
     )
@@ -429,20 +437,20 @@ else:
     plt.tight_layout()
     st.pyplot(plt)
 
+    # Histogram of Residuals Distribution
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
     # Histogram of LSTM+Attention
-    plt.figure(figsize=(8, 5))
-    sns.histplot(lstm_residuals, kde=True, bins=30)
-    plt.title("LSTM+Attention: Residual Distribution")
-    plt.xlabel("Residuals")
-    plt.ylabel("Frequency")
-    plt.tight_layout()
-    st.pyplot(plt)
+    sns.histplot(lstm_residuals, kde = True, bins = 30, ax = axes[0])
+    axes[0].set_title("LSTM+Attention: Residual Distribution")
+    axes[0].set_xlabel("Residuals")
+    axes[0].set_ylabel("Frequency")
 
     # Histogram of GRU
-    plt.figure(figsize=(8, 5))
-    sns.histplot(gru_residuals, kde=True, bins=30)
-    plt.title("GRU: Residual Distribution")
-    plt.xlabel("Residuals")
-    plt.ylabel("Frequency")
+    sns.histplot(gru_residuals, kde = True, bins = 30, ax = axes[1])
+    axes[1].set_title("GRU: Residual Distribution")
+    axes[1].set_xlabel("Residuals")
+    axes[1].set_ylabel("Frequency")
+
     plt.tight_layout()
-    st.pyplot(plt)
+    st.pyplot(fig)
