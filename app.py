@@ -60,7 +60,7 @@ model_option = st.sidebar.selectbox(
 
 # Input from user
 input_year = st.number_input(
-    "Enter the starting year for prediction (minimum: 2015):", 
+    "Enter the starting year for prediction (minimum: 2015, maximum: 2024):", 
     min_value = 2015, 
     max_value = 2024, 
     value = 2020
