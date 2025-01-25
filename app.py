@@ -1,5 +1,6 @@
 # Import Libraries
 import time
+import requests
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -17,7 +18,7 @@ from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 st.set_page_config(layout = "wide")
 
 # Reading Dataset and Data Preprocessing
-df = pd.read_csv('gold.csv')
+df = pd.read_csv('https://docs.google.com/spreadsheets/d/1ZnZA21wwH0OtLfGIpXwZE7R7sBRTsBf-fPG_iAqPREs/export?format=csv')
 df['Date'] = pd.to_datetime(df['Date'])
 df.sort_values(by = 'Date', ascending = True, inplace = True)
 df.reset_index(drop = True, inplace = True)
