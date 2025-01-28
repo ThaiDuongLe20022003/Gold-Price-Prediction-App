@@ -1,6 +1,5 @@
 # Import Libraries
 import time
-import requests
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -18,20 +17,41 @@ from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 st.set_page_config(layout = "wide")
 
 # Reading Dataset and Data Preprocessing
-df = pd.read_csv('https://docs.google.com/spreadsheets/d/1ZnZA21wwH0OtLfGIpXwZE7R7sBRTsBf-fPG_iAqPREs/export?format=csv')
+df = pd.read_csv('gold.csv')
+
 df['Date'] = pd.to_datetime(df['Date'])
 df.sort_values(by = 'Date', ascending = True, inplace = True)
 df.reset_index(drop = True, inplace = True)
+
 df['Price'] = df['Price'].replace({',': ''}, regex = True).astype(float)
+
 df['Open'] = df['Open'].replace({',': ''}, regex = True).astype(float)
+
 df['High'] = df['High'].replace({',': ''}, regex = True).astype(float)
+
 df['Low'] = df['Low'].replace({',': ''}, regex = True).astype(float)
-df.drop(['Vol.'], axis = 1, inplace = True)
+
 df['Change %'] = df['Change %'].str.replace('%', '').astype(float) / 100
+
+# Create New Variables
+df['H-L'] = df['High'] - df['Low'] # Gold High minus Low price (H-L)
+
+df['C-O'] = df['Price'] - df['Open'] # Gold Close minus Open price (C-O)
+
+df['7 DAYS MA'] = df['Price'].rolling(window = 7).mean() # Gold price’s seven days’ moving average (7 DAYS MA)
+
+df['7 DAYS STD DEV'] = df['Price'].rolling(window = 7).std() # Gold price’s standard deviation for the past seven days (7 DAYS STD DEV)
+
+# Drop
+df.drop(['Vol.'], axis = 1, inplace = True)
+df.drop(['Open'], axis = 1, inplace = True)
+df.drop(['High'], axis = 1, inplace = True)
+df.drop(['Low'], axis = 1, inplace = True)
+df.dropna(inplace = True)
 
 # Streamlit title
 st.title('Gold Price Prediction Based On Historical Data')
-st.write("In this project, we implement two models: Long-Short Term Memory with Attention Mechanism and Gated Reccurent Unit.")
+st.write("In this project, we integrate Attention mechanism in two models: Long-Short Term Memory and Gated Reccurent Unit for Time Series Forcasting.")
 st.write("\nHere's the data from 1975 to now.")
 
 # Visualizing Gold Price in History
@@ -56,7 +76,7 @@ st.pyplot(plt)
 # Sidebar for model selection
 model_option = st.sidebar.selectbox(
     'Choose a model to predict gold prices',
-    ['LSTM+Attention', 'GRU', 'Two Models']
+    ['LSTM', 'GRU', 'Two Models']
 )
 
 # Input from user
@@ -68,17 +88,20 @@ input_year = st.number_input(
 )
 
 # Prepare data
-features = ['Open', 'High', 'Low', 'Change %', 'Price']
+features = ['Change %', 'H-L', 'C-O', '7 DAYS MA', '7 DAYS STD DEV']
+target = 'Price'
+
 scaler = MinMaxScaler()
-data_scaled = scaler.fit_transform(df[features])
+data_scaled = scaler.fit_transform(df[features + [target]])
 
 # Sliding windows technique
 window_size = 3
+
 def create_multivariate_sliding_windows(data, window_size):
     X, y = [], []
     for i in range(len(data) - window_size):
-        X.append(data[i : i + window_size, : - 1])  # Use all columns except 'Price'
-        y.append(data[i + window_size, - 1])    # 'Price' as target
+        X.append(data[i : i + window_size, : - 1])
+        y.append(data[i + window_size, - 1])
     return np.array(X), np.array(y)
 
 # Split data into training and testing sets
@@ -98,10 +121,13 @@ test_dates = df[df['Date'].dt.year >= input_year]['Date'][window_size:]
 
 plt.figure(figsize = (25, 8), dpi = 150)
 plt.rcParams['axes.facecolor'] = 'lightgray'
-plt.rc('axes',edgecolor = 'white')
+plt.rc('axes', edgecolor = 'white')
 
-plt.plot(train_dates, scaler.inverse_transform(np.hstack((np.zeros((y_train.shape[0], len(features) - 1)), y_train.reshape(-1, 1))))[:, -1], label='Training Data', color='blue')
-plt.plot(test_dates, scaler.inverse_transform(np.hstack((np.zeros((y_test.shape[0], len(features) - 1)), y_test.reshape(-1, 1))))[:, -1], label='Testing Data', color='red')
+train_prices = scaler.inverse_transform(np.hstack((np.zeros((y_train.shape[0], len(features))), y_train.reshape(-1, 1))))[:, -1]
+test_prices = scaler.inverse_transform(np.hstack((np.zeros((y_test.shape[0], len(features))), y_test.reshape(-1, 1))))[:, -1]
+
+plt.plot(train_dates, train_prices, label = 'Training Data', color = 'blue')
+plt.plot(test_dates, test_prices, label = 'Testing Data', color = 'red')
 
 plt.title('Gold Price Training and Test Sets', fontsize = 15)
 plt.xlabel('Year', fontsize = 12)
@@ -127,15 +153,15 @@ st.pyplot(plt)
 def build_lstm_attention_multivariate(window_size, num_features):
     input_layer = Input(shape = (window_size, num_features))
     lstm_out = LSTM(64, return_sequences = True)(input_layer)
-    
+
     # First Attention Layer
     attention_1 = Attention()([lstm_out, lstm_out])
     lstm_out_2 = LSTM(64, return_sequences = True)(attention_1)
-    
+
     # Second Attention Layer
     attention_2 = Attention()([lstm_out_2, lstm_out_2])
     flatten = Flatten()(attention_2)
-    
+
     dense_1 = Dense(64, activation = 'relu')(flatten)
     dropout = Dropout(0.2)(dense_1)
     output_layer = Dense(1)(dropout)
@@ -145,11 +171,23 @@ def build_lstm_attention_multivariate(window_size, num_features):
     model.summary()
     return model
 
-def build_gru_multivariate(window_size, num_features):
+def build_gru_attention_multivariate(window_size, num_features):
     input_layer = Input(shape = (window_size, num_features))
-    gru_out = GRU(64, return_sequences = False)(input_layer)
 
-    dense_1 = Dense(64, activation = 'relu')(gru_out)
+    # First GRU Layer
+    gru_out = GRU(64, return_sequences = True)(input_layer)
+
+    # First Attention Layer
+    attention_1 = Attention()([gru_out, gru_out])
+
+    # Second GRU Layer
+    gru_out_2 = GRU(64, return_sequences = True)(attention_1)
+
+    # Second Attention Layer
+    attention_2 = Attention()([gru_out_2, gru_out_2])
+
+    flatten = Flatten()(attention_2)
+    dense_1 = Dense(64, activation = 'relu')(flatten)
     dropout = Dropout(0.2)(dense_1)
     output_layer = Dense(1)(dropout)
 
@@ -160,37 +198,39 @@ def build_gru_multivariate(window_size, num_features):
 
 # Callbacks
 early_stopping = EarlyStopping(monitor = 'val_loss', patience = 10, restore_best_weights = True, verbose = 1)
-reduce_lr = ReduceLROnPlateau(monitor = 'val_loss', factor = 0.5, patience = 5, min_lr = 1e-8, verbose = 1)
+reduce_lr = ReduceLROnPlateau(monitor = 'val_loss', factor = 0.5, patience = 5, min_lr = 1e-9, verbose = 1)
 
 # Metrics Calculating Definition
 def calculate_metrics(y_true, y_pred):
     mape = mean_absolute_percentage_error(y_true, y_pred) * 100
     mae = mean_absolute_error(y_true, y_pred)
     rmse = np.sqrt(np.mean((y_true - y_pred) ** 2))
+
     return mape, mae, rmse
 
-if model_option == 'LSTM+Attention':
-    # Train LSTM+Attention
+if model_option == 'LSTM':
+    # Train LSTM
     start_time_lstm = time.time()
     lstm_model = build_lstm_attention_multivariate(window_size, X_train.shape[2])
+
     lstm_history = lstm_model.fit(
         X_train, y_train,
         validation_split = 0.1,
-        epochs = 200,
+        epochs = 500,
         batch_size = 128,
         callbacks = [early_stopping, reduce_lr],
         verbose = 1
     )
     end_time_lstm = time.time()
 
-    # Evaluate LSTM+Attention Model
+    # Evaluate LSTM Model
     lstm_results = lstm_model.evaluate(X_test, y_test, verbose = 1)
     lstm_pred = lstm_model.predict(X_test)
     lstm_r2 = r2_score(y_test, lstm_pred)
 
     # Inverse Transform Predictions
-    y_test_actual = scaler.inverse_transform(np.hstack((np.zeros((y_test.shape[0], len(features) - 1)), y_test.reshape(-1, 1))))[:, -1]
-    lstm_pred_true = scaler.inverse_transform(np.hstack((np.zeros((lstm_pred.shape[0], len(features) - 1)), lstm_pred)))[:, -1]
+    y_test_actual = scaler.inverse_transform(np.hstack((np.zeros((y_test.shape[0], len(features))), y_test.reshape(-1, 1))))[:, -1]
+    lstm_pred_true = scaler.inverse_transform(np.hstack((np.zeros((lstm_pred.shape[0], len(features))), lstm_pred)))[:, -1]
 
     # Calculate Metrics
     lstm_mape, lstm_mae, lstm_rmse = calculate_metrics(y_test_actual, lstm_pred_true)
@@ -211,7 +251,7 @@ if model_option == 'LSTM+Attention':
     plt.rc('axes', edgecolor = 'white')
 
     plt.plot(df[df['Date'].dt.year >= input_year]['Date'][window_size:], y_test_actual, color = 'red', lw = 2, label = 'Actual')
-    plt.plot(df[df['Date'].dt.year >= input_year]['Date'][window_size:], lstm_pred_true, color = 'yellow', lw = 2, label = 'LSTM+Attention')
+    plt.plot(df[df['Date'].dt.year >= input_year]['Date'][window_size:], lstm_pred_true, color = 'yellow', lw = 2, label = 'LSTM')
 
     plt.title('Model Performance on Gold Price Prediction', fontsize = 15)
     plt.xlabel('Year', fontsize = 12)
@@ -229,10 +269,10 @@ if model_option == 'LSTM+Attention':
     # Scatterplot: Residuals vs True Values
     plt.figure(figsize = (8, 5))
 
-    # LSTM+Attention Scatterplot
+    # LSTM Scatterplot
     plt.scatter(y_test_actual, lstm_residuals, color='blue', alpha = 0.6, edgecolor = 'k')
     plt.axhline(0, color = 'red', linestyle = '--', linewidth = 1)
-    plt.title("LSTM+Attention: Residuals vs True Values", fontsize = 16)
+    plt.title("LSTM: Residuals vs True Values", fontsize = 16)
     plt.xlabel("True Values", fontsize = 14)
     plt.ylabel("Residuals", fontsize = 14)
     plt.grid(True, linestyle = '--', alpha = 0.6)
@@ -240,10 +280,10 @@ if model_option == 'LSTM+Attention':
 
     st.pyplot(plt)
 
-    # Histogram of LSTM+Attention
+    # Histogram of LSTM
     plt.figure(figsize = (8, 5))
     sns.histplot(lstm_residuals, kde = True, bins = 30)
-    plt.title("LSTM+Attention: Residual Distribution")
+    plt.title("LSTM: Residuals Distribution")
     plt.xlabel("Residuals")
     plt.ylabel("Frequency")
     plt.tight_layout()
@@ -253,11 +293,12 @@ if model_option == 'LSTM+Attention':
 elif model_option == 'GRU':
     # Train GRU
     start_time_gru = time.time()
-    gru_model = build_gru_multivariate(window_size, X_train.shape[2])
+    gru_model = build_gru_attention_multivariate(window_size, X_train.shape[2])
+
     gru_history = gru_model.fit(
         X_train, y_train,
         validation_split = 0.1,
-        epochs = 200,
+        epochs = 500,
         batch_size = 128,
         callbacks = [early_stopping, reduce_lr],
         verbose = 1
@@ -270,8 +311,8 @@ elif model_option == 'GRU':
     gru_r2 = r2_score(y_test, gru_pred)
 
     # Inverse Transform Predictions
-    y_test_actual = scaler.inverse_transform(np.hstack((np.zeros((y_test.shape[0], len(features) - 1)), y_test.reshape(-1, 1))))[:, -1]
-    gru_pred_true = scaler.inverse_transform(np.hstack((np.zeros((gru_pred.shape[0], len(features) - 1)), gru_pred)))[:, -1]
+    y_test_actual = scaler.inverse_transform(np.hstack((np.zeros((y_test.shape[0], len(features))), y_test.reshape(-1, 1))))[:, -1]
+    gru_pred_true = scaler.inverse_transform(np.hstack((np.zeros((gru_pred.shape[0], len(features))), gru_pred)))[:, -1]
 
     # Calculate Metrics
     gru_mape, gru_mae, gru_rmse = calculate_metrics(y_test_actual, gru_pred_true)
@@ -324,7 +365,7 @@ elif model_option == 'GRU':
     # Histogram of GRU
     plt.figure(figsize = (8, 5))
     sns.histplot(gru_residuals, kde = True, bins = 30)
-    plt.title("GRU: ResidualS Distribution")
+    plt.title("GRU: Residuals Distribution")
     plt.xlabel("Residuals")
     plt.ylabel("Frequency")
     plt.tight_layout()
@@ -335,10 +376,11 @@ else:
     # Training Models
     start_time_lstm = time.time()
     lstm_model = build_lstm_attention_multivariate(window_size, X_train.shape[2])
+
     lstm_history = lstm_model.fit(
         X_train, y_train,
         validation_split = 0.1,
-        epochs = 200,
+        epochs = 500,
         batch_size = 128,
         callbacks = [early_stopping, reduce_lr],
         verbose = 1
@@ -347,11 +389,12 @@ else:
 
    
     start_time_gru = time.time()
-    gru_model = build_gru_multivariate(window_size, X_train.shape[2])
+    gru_model = build_gru_attention_multivariate(window_size, X_train.shape[2])
+
     gru_history = gru_model.fit(
         X_train, y_train,
         validation_split = 0.1,
-        epochs = 200,
+        epochs = 500,
         batch_size = 128,
         callbacks = [early_stopping, reduce_lr],
         verbose = 1
@@ -368,9 +411,9 @@ else:
     gru_r2 = r2_score(y_test, gru_pred)
 
     # Inverse Transform Predictions
-    y_test_actual = scaler.inverse_transform(np.hstack((np.zeros((y_test.shape[0], len(features) - 1)), y_test.reshape(-1, 1))))[:, -1]
-    lstm_pred_true = scaler.inverse_transform(np.hstack((np.zeros((lstm_pred.shape[0], len(features) - 1)), lstm_pred)))[:, -1]
-    gru_pred_true = scaler.inverse_transform(np.hstack((np.zeros((gru_pred.shape[0], len(features) - 1)), gru_pred)))[:, -1]
+    y_test_actual = scaler.inverse_transform(np.hstack((np.zeros((y_test.shape[0], len(features))), y_test.reshape(-1, 1))))[:, -1]
+    lstm_pred_true = scaler.inverse_transform(np.hstack((np.zeros((lstm_pred.shape[0], len(features))), lstm_pred)))[:, -1]
+    gru_pred_true = scaler.inverse_transform(np.hstack((np.zeros((gru_pred.shape[0], len(features))), gru_pred)))[:, -1]
 
     # Calculate Metrics
     lstm_mape, lstm_mae, lstm_rmse = calculate_metrics(y_test_actual, lstm_pred_true)
@@ -378,7 +421,7 @@ else:
 
     # Print Results
     st.write("\nRESULTS")
-    st.write("- LSTM+Attention:")
+    st.write("- LSTM:")
     st.write(f"Loss: {lstm_results}")
     st.write(f"R² Score: {lstm_r2}")
     st.write(f"Mean Absolute Percentage Error: {lstm_mape} %")
@@ -402,7 +445,7 @@ else:
     plt.rc('axes', edgecolor = 'white')
 
     plt.plot(df[df['Date'].dt.year >= input_year]['Date'][window_size:], y_test_actual, color = 'red', lw = 2, label = 'Actual')
-    plt.plot(df[df['Date'].dt.year >= input_year]['Date'][window_size:], lstm_pred_true, color = 'yellow', lw = 2, label = 'LSTM+Attention')
+    plt.plot(df[df['Date'].dt.year >= input_year]['Date'][window_size:], lstm_pred_true, color = 'yellow', lw = 2, label = 'LSTM')
     plt.plot(df[df['Date'].dt.year >= input_year]['Date'][window_size:], gru_pred_true, color = 'blue', lw = 2, label = 'GRU')
 
     plt.title('Model Performance on Gold Price Prediction', fontsize = 15)
@@ -425,7 +468,7 @@ else:
     plt.subplot(1, 2, 1)
     plt.scatter(y_test_actual, lstm_residuals, color = 'blue', alpha = 0.6)
     plt.axhline(0, color = 'red', linestyle = '--', linewidth = 1)
-    plt.title("LSTM+Attention: Residuals vs True Values", fontsize = 14)
+    plt.title("LSTM: Residuals vs True Values", fontsize = 14)
     plt.xlabel("True Values", fontsize = 12)
     plt.ylabel("Residuals", fontsize = 12)
     plt.grid(True)
@@ -442,11 +485,11 @@ else:
     st.pyplot(plt)
 
     # Histogram of Residuals Distribution
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    fig, axes = plt.subplots(1, 2, figsize = (14, 6))
 
     # Histogram of LSTM+Attention
     sns.histplot(lstm_residuals, kde = True, bins = 30, ax = axes[0])
-    axes[0].set_title("LSTM+Attention: Residuals Distribution")
+    axes[0].set_title("LSTM: Residuals Distribution")
     axes[0].set_xlabel("Residuals")
     axes[0].set_ylabel("Frequency")
 
