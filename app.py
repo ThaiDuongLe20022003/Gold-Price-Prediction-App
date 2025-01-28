@@ -38,9 +38,9 @@ df['H-L'] = df['High'] - df['Low'] # Gold High minus Low price (H-L)
 
 df['C-O'] = df['Price'] - df['Open'] # Gold Close minus Open price (C-O)
 
-df['7 DAYS MA'] = df['Price'].rolling(window = 7).mean() # Gold price’s seven days’ moving average (7 DAYS MA)
+df['3 DAYS MA'] = df['Price'].rolling(window = 3).mean() # Gold price’s three days’ moving average (3 DAYS MA)
 
-df['7 DAYS STD DEV'] = df['Price'].rolling(window = 7).std() # Gold price’s standard deviation for the past seven days (7 DAYS STD DEV)
+df['3 DAYS STD DEV'] = df['Price'].rolling(window = 3).std() # Gold price’s standard deviation for the past three days (3 DAYS STD DEV)
 
 # Drop
 df.drop(['Vol.'], axis = 1, inplace = True)
@@ -88,7 +88,7 @@ input_year = st.number_input(
 )
 
 # Prepare data
-features = ['Change %', 'H-L', 'C-O', '7 DAYS MA', '7 DAYS STD DEV']
+features = ['Change %', 'H-L', 'C-O', '3 DAYS MA', '3 DAYS STD DEV']
 target = 'Price'
 
 scaler = MinMaxScaler()
@@ -216,7 +216,7 @@ if model_option == 'LSTM':
     lstm_history = lstm_model.fit(
         X_train, y_train,
         validation_split = 0.1,
-        epochs = 500,
+        epochs = 200,
         batch_size = 128,
         callbacks = [early_stopping, reduce_lr],
         verbose = 1
@@ -298,7 +298,7 @@ elif model_option == 'GRU':
     gru_history = gru_model.fit(
         X_train, y_train,
         validation_split = 0.1,
-        epochs = 500,
+        epochs = 200,
         batch_size = 128,
         callbacks = [early_stopping, reduce_lr],
         verbose = 1
@@ -380,7 +380,7 @@ else:
     lstm_history = lstm_model.fit(
         X_train, y_train,
         validation_split = 0.1,
-        epochs = 500,
+        epochs = 200,
         batch_size = 128,
         callbacks = [early_stopping, reduce_lr],
         verbose = 1
@@ -394,7 +394,7 @@ else:
     gru_history = gru_model.fit(
         X_train, y_train,
         validation_split = 0.1,
-        epochs = 500,
+        epochs = 200,
         batch_size = 128,
         callbacks = [early_stopping, reduce_lr],
         verbose = 1
