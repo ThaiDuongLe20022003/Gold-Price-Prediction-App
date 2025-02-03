@@ -24,29 +24,19 @@ df.sort_values(by = 'Date', ascending = True, inplace = True)
 df.reset_index(drop = True, inplace = True)
 
 df['Price'] = df['Price'].replace({',': ''}, regex = True).astype(float)
-
 df['Open'] = df['Open'].replace({',': ''}, regex = True).astype(float)
-
 df['High'] = df['High'].replace({',': ''}, regex = True).astype(float)
-
 df['Low'] = df['Low'].replace({',': ''}, regex = True).astype(float)
-
 df['Change %'] = df['Change %'].str.replace('%', '').astype(float) / 100
 
 # Create New Variables
-df['H-L'] = df['High'] - df['Low'] # Gold High minus Low price (H-L)
-
-df['C-O'] = df['Price'] - df['Open'] # Gold Close minus Open price (C-O)
-
-df['3 DAYS MA'] = df['Price'].rolling(window = 3).mean() # Gold price’s three days’ moving average (3 DAYS MA)
-
-df['3 DAYS STD DEV'] = df['Price'].rolling(window = 3).std() # Gold price’s standard deviation for the past three days (3 DAYS STD DEV)
+df['H-L'] = df['High'] - df['Low'] 
+df['C-O'] = df['Price'] - df['Open'] 
+df['3 DAYS MA'] = df['Price'].rolling(window = 3).mean() 
+df['3 DAYS STD DEV'] = df['Price'].rolling(window = 3).std() 
 
 # Drop
-df.drop(['Vol.'], axis = 1, inplace = True)
-df.drop(['Open'], axis = 1, inplace = True)
-df.drop(['High'], axis = 1, inplace = True)
-df.drop(['Low'], axis = 1, inplace = True)
+df.drop(['Vol.', 'Open', 'High', 'Low'], axis = 1, inplace = True)
 df.dropna(inplace = True)
 
 # Streamlit title
@@ -90,7 +80,6 @@ input_year = st.number_input(
 # Prepare data
 features = ['Change %', 'H-L', 'C-O', '3 DAYS MA', '3 DAYS STD DEV']
 target = 'Price'
-
 scaler = MinMaxScaler()
 data_scaled = scaler.fit_transform(df[features + [target]])
 
