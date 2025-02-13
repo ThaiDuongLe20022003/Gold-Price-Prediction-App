@@ -34,6 +34,7 @@ df['H-L'] = df['High'] - df['Low']
 df['C-O'] = df['Price'] - df['Open'] 
 df['3 DAYS MA'] = df['Price'].rolling(window = 3).mean() 
 df['3 DAYS STD DEV'] = df['Price'].rolling(window = 3).std() 
+df['Price'] = df['Price'].shift(-1)
 
 # Drop
 df.drop(['Vol.', 'Open', 'High', 'Low'], axis = 1, inplace = True)
@@ -152,7 +153,7 @@ def build_lstm_attention_multivariate(window_size, num_features):
     flatten = Flatten()(attention_2)
 
     dense_1 = Dense(64, activation = 'relu')(flatten)
-    dropout = Dropout(0.2)(dense_1)
+    dropout = Dropout(0.8)(dense_1)
     output_layer = Dense(1)(dropout)
 
     model = Model(inputs = input_layer, outputs = output_layer)
@@ -177,13 +178,13 @@ def build_gru_attention_multivariate(window_size, num_features):
 
     flatten = Flatten()(attention_2)
     dense_1 = Dense(64, activation = 'relu')(flatten)
-    dropout = Dropout(0.2)(dense_1)
+    dropout = Dropout(0.8)(dense_1)
     output_layer = Dense(1)(dropout)
 
     model = Model(inputs = input_layer, outputs = output_layer)
     model.compile(loss = 'mean_squared_error', optimizer = 'Nadam')
     model.summary()
-    return model
+    return model 
 
 # Callbacks
 early_stopping = EarlyStopping(monitor = 'val_loss', patience = 10, restore_best_weights = True, verbose = 1)
@@ -229,7 +230,6 @@ if model_option == 'LSTM':
     st.write(f"Loss: {lstm_results}")
     st.write(f"R² Score: {lstm_r2}")
     st.write(f"Mean Absolute Percentage Error: {lstm_mape} %")
-    st.write(f"Test Accuracy: {100 - lstm_mape} %")
     st.write(f"Mean Absolute Error: {lstm_mae} USD")
     st.write(f"Root Mean Square Error: {lstm_rmse} USD")
     st.write(f"Training time: {end_time_lstm - start_time_lstm} seconds")
@@ -311,7 +311,6 @@ elif model_option == 'GRU':
     st.write(f"Loss: {gru_results}")
     st.write(f"R² Score: {gru_r2}")
     st.write(f"Mean Absolute Percentage Error: {gru_mape} %")
-    st.write(f"Test Accuracy: {100 - gru_mape} %")
     st.write(f"Mean Absolute Error: {gru_mae} USD")
     st.write(f"Root Mean Square Error: {gru_rmse} USD")
     st.write(f"Training Time: {end_time_gru - start_time_gru} seconds")
@@ -414,7 +413,6 @@ else:
     st.write(f"Loss: {lstm_results}")
     st.write(f"R² Score: {lstm_r2}")
     st.write(f"Mean Absolute Percentage Error: {lstm_mape} %")
-    st.write(f"Test Accuracy: {100 - lstm_mape} %")
     st.write(f"Mean Absolute Error: {lstm_mae} USD")
     st.write(f"Root Mean Square Error: {lstm_rmse} USD")
     st.write(f"Training time: {end_time_lstm - start_time_lstm} seconds")
@@ -423,7 +421,6 @@ else:
     st.write(f"Loss: {gru_results}")
     st.write(f"R² Score: {gru_r2}")
     st.write(f"Mean Absolute Percentage Error: {gru_mape} %")
-    st.write(f"Test Accuracy: {100 - gru_mape} %")
     st.write(f"Mean Absolute Error: {gru_mae} USD")
     st.write(f"Root Mean Square Error: {gru_rmse} USD")
     st.write(f"Training Time: {end_time_gru - start_time_gru} seconds")
