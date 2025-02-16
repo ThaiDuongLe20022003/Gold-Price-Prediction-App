@@ -1,5 +1,4 @@
 # Import Libraries
-import time
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -7,7 +6,7 @@ import matplotlib.dates as mdates
 import plotly.express as px
 import seaborn as sns
 import streamlit as st
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import RobustScaler
 from sklearn.metrics import mean_absolute_percentage_error, r2_score, mean_absolute_error
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import LSTM, GRU, Input, Dense, Dropout, Attention, Flatten
@@ -32,9 +31,8 @@ df['Change %'] = df['Change %'].str.replace('%', '').astype(float) / 100
 # Create New Variables
 df['H-L'] = df['High'] - df['Low'] 
 df['C-O'] = df['Price'] - df['Open'] 
-df['3 DAYS MA'] = df['Price'].rolling(window = 3).mean() 
-df['3 DAYS STD DEV'] = df['Price'].rolling(window = 3).std() 
-df['Price'] = df['Price'].shift(-1)
+df['30 DAYS MA'] = df['Price'].rolling(window = 30).mean() 
+df['30 DAYS STD DEV'] = df['Price'].rolling(window = 30).std() 
 
 # Drop
 df.drop(['Vol.', 'Open', 'High', 'Low'], axis = 1, inplace = True)
@@ -46,7 +44,7 @@ st.write("In this project, we integrate Attention mechanism in two models: Long-
 st.write("\nHere's the data from 1975 to now.")
 
 # Visualizing Gold Price in History
-plt.figure(figsize = (25, 8), dpi = 150)
+plt.figure(figsize = (25, 8), dpi = 250)
 plt.rcParams['axes.facecolor'] = 'lightgray'
 plt.rc('axes', edgecolor = 'white')
 
@@ -79,13 +77,23 @@ input_year = st.number_input(
 )
 
 # Prepare data
-features = ['Change %', 'H-L', 'C-O', '3 DAYS MA', '3 DAYS STD DEV']
+features = ['Change %', 'H-L', 'C-O', '30 DAYS MA', '30 DAYS STD DEV']
 target = 'Price'
-scaler = MinMaxScaler()
-data_scaled = scaler.fit_transform(df[features + [target]])
+scaler = RobustScaler()
+
+# Split data
+train_data = df[df['Date'].dt.year < input_year]
+test_data = df[df['Date'].dt.year >= input_year]
+
+# Fit the scaler on the training data for both features and target
+scaler.fit(train_data[features + [target]])
+
+# Transform both training and test data
+train_scaled = scaler.transform(train_data[features + [target]])
+test_scaled = scaler.transform(test_data[features + [target]])
 
 # Sliding windows technique
-window_size = 3
+window_size = 30
 
 def create_multivariate_sliding_windows(data, window_size):
     X, y = [], []
@@ -94,43 +102,28 @@ def create_multivariate_sliding_windows(data, window_size):
         y.append(data[i + window_size, - 1])
     return np.array(X), np.array(y)
 
-# Split data into training and testing sets
-train_data = data_scaled[df['Date'].dt.year < input_year]
-test_data = data_scaled[df['Date'].dt.year >= input_year]
-
-X_train, y_train = create_multivariate_sliding_windows(train_data, window_size)
-X_test, y_test = create_multivariate_sliding_windows(test_data, window_size)
+X_train, y_train = create_multivariate_sliding_windows(train_scaled, window_size)
+X_test, y_test = create_multivariate_sliding_windows(test_scaled, window_size)
 
 st.write(
     f"\nWe cannot train on future data in time series data, so we consider the data from {input_year} to now for testing and everything else for training."
 )
 
 # Visualize training and testing data
-train_dates = df[df['Date'].dt.year < input_year]['Date'][window_size:]
-test_dates = df[df['Date'].dt.year >= input_year]['Date'][window_size:]
+test_size = df[df['Date'].dt.year >= input_year].shape[0]
 
-plt.figure(figsize = (25, 8), dpi = 150)
+plt.figure(figsize = (25, 8), dpi = 250)
 plt.rcParams['axes.facecolor'] = 'lightgray'
-plt.rc('axes', edgecolor = 'white')
+plt.rc('axes',edgecolor = 'white')
 
-train_prices = scaler.inverse_transform(np.hstack((np.zeros((y_train.shape[0], len(features))), y_train.reshape(-1, 1))))[:, -1]
-test_prices = scaler.inverse_transform(np.hstack((np.zeros((y_test.shape[0], len(features))), y_test.reshape(-1, 1))))[:, -1]
-
-plt.plot(train_dates, train_prices, label = 'Training Data', color = 'blue')
-plt.plot(test_dates, test_prices, label = 'Testing Data', color = 'red')
+plt.plot(df.Date[:-test_size], df.Price[:-test_size], color = 'blue', lw = 2)
+plt.plot(df.Date[-test_size:], df.Price[-test_size:], color = 'red', lw = 2)
 
 plt.title('Gold Price Training and Test Sets', fontsize = 15)
-plt.xlabel('Year', fontsize = 12)
+plt.xlabel('Date', fontsize = 12)
 plt.ylabel('Price', fontsize = 12)
 
-plt.legend(
-    ['Training set', 'Test set'],
-    loc = 'upper left',
-    prop = {'size': 15},
-    facecolor = 'white',
-    edgecolor = 'black'
-)
-
+plt.legend(['Training set', 'Test set'], loc = 'upper left', prop = {'size': 15})
 plt.grid(color = 'white')
 
 plt.gca().xaxis.set_major_locator(mdates.YearLocator(1))
@@ -153,7 +146,7 @@ def build_lstm_attention_multivariate(window_size, num_features):
     flatten = Flatten()(attention_2)
 
     dense_1 = Dense(64, activation = 'relu')(flatten)
-    dropout = Dropout(0.8)(dense_1)
+    dropout = Dropout(0.2)(dense_1)
     output_layer = Dense(1)(dropout)
 
     model = Model(inputs = input_layer, outputs = output_layer)
@@ -178,7 +171,7 @@ def build_gru_attention_multivariate(window_size, num_features):
 
     flatten = Flatten()(attention_2)
     dense_1 = Dense(64, activation = 'relu')(flatten)
-    dropout = Dropout(0.8)(dense_1)
+    dropout = Dropout(0.2)(dense_1)
     output_layer = Dense(1)(dropout)
 
     model = Model(inputs = input_layer, outputs = output_layer)
@@ -188,7 +181,7 @@ def build_gru_attention_multivariate(window_size, num_features):
 
 # Callbacks
 early_stopping = EarlyStopping(monitor = 'val_loss', patience = 10, restore_best_weights = True, verbose = 1)
-reduce_lr = ReduceLROnPlateau(monitor = 'val_loss', factor = 0.5, patience = 5, min_lr = 1e-9, verbose = 1)
+reduce_lr = ReduceLROnPlateau(monitor = 'val_loss', factor = 0.5, patience = 5, min_lr = 1e-6, verbose = 1)
 
 # Metrics Calculating Definition
 def calculate_metrics(y_true, y_pred):
@@ -200,7 +193,6 @@ def calculate_metrics(y_true, y_pred):
 
 if model_option == 'LSTM':
     # Train LSTM
-    start_time_lstm = time.time()
     lstm_model = build_lstm_attention_multivariate(window_size, X_train.shape[2])
 
     lstm_history = lstm_model.fit(
@@ -211,7 +203,6 @@ if model_option == 'LSTM':
         callbacks = [early_stopping, reduce_lr],
         verbose = 1
     )
-    end_time_lstm = time.time()
 
     # Evaluate LSTM Model
     lstm_results = lstm_model.evaluate(X_test, y_test, verbose = 1)
@@ -232,10 +223,9 @@ if model_option == 'LSTM':
     st.write(f"Mean Absolute Percentage Error: {lstm_mape} %")
     st.write(f"Mean Absolute Error: {lstm_mae} USD")
     st.write(f"Root Mean Square Error: {lstm_rmse} USD")
-    st.write(f"Training time: {end_time_lstm - start_time_lstm} seconds")
 
     # Plot the actual test data and predicted test data
-    plt.figure(figsize = (25, 8), dpi = 150)
+    plt.figure(figsize = (25, 8), dpi = 250)
     plt.rcParams['axes.facecolor'] = 'lightgray'
     plt.rc('axes', edgecolor = 'white')
 
@@ -281,7 +271,6 @@ if model_option == 'LSTM':
 
 elif model_option == 'GRU':
     # Train GRU
-    start_time_gru = time.time()
     gru_model = build_gru_attention_multivariate(window_size, X_train.shape[2])
 
     gru_history = gru_model.fit(
@@ -292,7 +281,6 @@ elif model_option == 'GRU':
         callbacks = [early_stopping, reduce_lr],
         verbose = 1
     )
-    end_time_gru = time.time()
 
     # Evaluate GRU Model
     gru_results = gru_model.evaluate(X_test, y_test, verbose = 1)
@@ -313,10 +301,9 @@ elif model_option == 'GRU':
     st.write(f"Mean Absolute Percentage Error: {gru_mape} %")
     st.write(f"Mean Absolute Error: {gru_mae} USD")
     st.write(f"Root Mean Square Error: {gru_rmse} USD")
-    st.write(f"Training Time: {end_time_gru - start_time_gru} seconds")
 
     # Plot the actual test data and predicted test data
-    plt.figure(figsize = (25, 8), dpi = 150)
+    plt.figure(figsize = (25, 8), dpi = 250)
     plt.rcParams['axes.facecolor'] = 'lightgray'
     plt.rc('axes', edgecolor = 'white')
 
@@ -340,7 +327,7 @@ elif model_option == 'GRU':
     plt.figure(figsize = (8, 5))
 
     # GRU Scatterplot
-    plt.scatter(y_test_actual, gru_residuals, color='green', alpha = 0.6, edgecolor = 'k')
+    plt.scatter(y_test_actual, gru_residuals, color = 'green', alpha = 0.6, edgecolor = 'k')
     plt.axhline(0, color = 'red', linestyle = '--', linewidth = 1)
     plt.title("GRU: Residuals vs True Values", fontsize = 16)
     plt.xlabel("True Values", fontsize = 14)
@@ -362,7 +349,6 @@ elif model_option == 'GRU':
 
 else:
     # Training Models
-    start_time_lstm = time.time()
     lstm_model = build_lstm_attention_multivariate(window_size, X_train.shape[2])
 
     lstm_history = lstm_model.fit(
@@ -373,10 +359,8 @@ else:
         callbacks = [early_stopping, reduce_lr],
         verbose = 1
     )
-    end_time_lstm = time.time()
 
    
-    start_time_gru = time.time()
     gru_model = build_gru_attention_multivariate(window_size, X_train.shape[2])
 
     gru_history = gru_model.fit(
@@ -387,7 +371,6 @@ else:
         callbacks = [early_stopping, reduce_lr],
         verbose = 1
     )
-    end_time_gru = time.time()
 
     # Evaluate Models
     lstm_results = lstm_model.evaluate(X_test, y_test, verbose = 1)
@@ -415,7 +398,6 @@ else:
     st.write(f"Mean Absolute Percentage Error: {lstm_mape} %")
     st.write(f"Mean Absolute Error: {lstm_mae} USD")
     st.write(f"Root Mean Square Error: {lstm_rmse} USD")
-    st.write(f"Training time: {end_time_lstm - start_time_lstm} seconds")
 
     st.write("\n- GRU:")
     st.write(f"Loss: {gru_results}")
@@ -423,10 +405,9 @@ else:
     st.write(f"Mean Absolute Percentage Error: {gru_mape} %")
     st.write(f"Mean Absolute Error: {gru_mae} USD")
     st.write(f"Root Mean Square Error: {gru_rmse} USD")
-    st.write(f"Training Time: {end_time_gru - start_time_gru} seconds")
 
     # Plot the actual test data and predicted test data
-    plt.figure(figsize = (25, 8), dpi = 150)
+    plt.figure(figsize = (25, 8), dpi = 250)
     plt.rcParams['axes.facecolor'] = 'lightgray'
     plt.rc('axes', edgecolor = 'white')
 
@@ -449,7 +430,7 @@ else:
     gru_residuals = y_test_actual - gru_pred_true
 
     # Scatterplot: Residuals vs True Values
-    plt.figure(figsize = (14, 6), dpi = 150)
+    plt.figure(figsize = (14, 6), dpi = 250)
 
     plt.subplot(1, 2, 1)
     plt.scatter(y_test_actual, lstm_residuals, color = 'blue', alpha = 0.6)
