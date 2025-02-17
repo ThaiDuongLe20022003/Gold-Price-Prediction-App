@@ -65,7 +65,7 @@ st.pyplot(plt)
 # Sidebar for model selection
 model_option = st.sidebar.selectbox(
     'Choose a model to predict gold prices',
-    ['LSTM', 'GRU', 'Two Models']
+    ['Two Models', 'LSTM', 'GRU']
 )
 
 # Input from user
@@ -73,7 +73,7 @@ input_year = st.number_input(
     "Enter the starting year for prediction (minimum: 2015, maximum: 2024):", 
     min_value = 2015, 
     max_value = 2024, 
-    value = 2020
+    value = 2016
 )
 
 # Prepare data
