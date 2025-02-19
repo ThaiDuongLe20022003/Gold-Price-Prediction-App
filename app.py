@@ -73,7 +73,7 @@ input_year = st.number_input(
     "Enter the starting year for prediction (minimum: 2015, maximum: 2024):", 
     min_value = 2015, 
     max_value = 2024, 
-    value = 2016
+    value = 2020
 )
 
 # Prepare data
@@ -187,9 +187,7 @@ reduce_lr = ReduceLROnPlateau(monitor = 'val_loss', factor = 0.5, patience = 5, 
 def calculate_metrics(y_true, y_pred):
     mape = mean_absolute_percentage_error(y_true, y_pred) * 100
     mae = mean_absolute_error(y_true, y_pred)
-    rmse = np.sqrt(np.mean((y_true - y_pred) ** 2))
-
-    return mape, mae, rmse
+    return mape, mae
 
 if model_option == 'LSTM':
     # Train LSTM
@@ -206,6 +204,7 @@ if model_option == 'LSTM':
 
     # Evaluate LSTM Model
     lstm_results = lstm_model.evaluate(X_test, y_test, verbose = 1)
+    lstm_rmse = np.sqrt(lstm_results)
     lstm_pred = lstm_model.predict(X_test)
     lstm_r2 = r2_score(y_test, lstm_pred)
 
@@ -214,7 +213,7 @@ if model_option == 'LSTM':
     lstm_pred_true = scaler.inverse_transform(np.hstack((np.zeros((lstm_pred.shape[0], len(features))), lstm_pred)))[:, -1]
 
     # Calculate Metrics
-    lstm_mape, lstm_mae, lstm_rmse = calculate_metrics(y_test_actual, lstm_pred_true)
+    lstm_mape, lstm_mae = calculate_metrics(y_test_actual, lstm_pred_true)
 
     # Print Results
     st.write("\nRESULTS")
@@ -284,6 +283,7 @@ elif model_option == 'GRU':
 
     # Evaluate GRU Model
     gru_results = gru_model.evaluate(X_test, y_test, verbose = 1)
+    gru_rmse = np.sqrt(gru_results)
     gru_pred = gru_model.predict(X_test)
     gru_r2 = r2_score(y_test, gru_pred)
 
@@ -292,7 +292,7 @@ elif model_option == 'GRU':
     gru_pred_true = scaler.inverse_transform(np.hstack((np.zeros((gru_pred.shape[0], len(features))), gru_pred)))[:, -1]
 
     # Calculate Metrics
-    gru_mape, gru_mae, gru_rmse = calculate_metrics(y_test_actual, gru_pred_true)
+    gru_mape, gru_mae = calculate_metrics(y_test_actual, gru_pred_true)
 
     # Print Results
     st.write("\nRESULTS")
@@ -374,10 +374,12 @@ else:
 
     # Evaluate Models
     lstm_results = lstm_model.evaluate(X_test, y_test, verbose = 1)
+    lstm_rmse = np.sqrt(lstm_results)
     lstm_pred = lstm_model.predict(X_test)
     lstm_r2 = r2_score(y_test, lstm_pred)
 
     gru_results = gru_model.evaluate(X_test, y_test, verbose = 1)
+    gru_rmse = np.sqrt(gru_results)
     gru_pred = gru_model.predict(X_test)
     gru_r2 = r2_score(y_test, gru_pred)
 
@@ -387,8 +389,8 @@ else:
     gru_pred_true = scaler.inverse_transform(np.hstack((np.zeros((gru_pred.shape[0], len(features))), gru_pred)))[:, -1]
 
     # Calculate Metrics
-    lstm_mape, lstm_mae, lstm_rmse = calculate_metrics(y_test_actual, lstm_pred_true)
-    gru_mape, gru_mae, gru_rmse = calculate_metrics(y_test_actual, gru_pred_true)
+    lstm_mape, lstm_mae = calculate_metrics(y_test_actual, lstm_pred_true)
+    gru_mape, gru_mae = calculate_metrics(y_test_actual, gru_pred_true)
 
     # Print Results
     st.write("\nRESULTS")
